@@ -1,5 +1,10 @@
+//contiene la logica principal del cliente para la app
+//utilizar web RTC para la comunicacion P2P y Socket.IO para la señalizacion y el chat en tiempo real. 
+
+
 const socket = io();
 
+//se obtienen los elementos de la interfaz
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const mensajeInput = document.getElementById('mensajeInput');
@@ -9,9 +14,16 @@ const hablarBtn = document.getElementById('hablarBtn');
 const toggleCameraBtn = document.getElementById('toggleCamera');
 const toggleMicBtn = document.getElementById('toggleMic');
 
+//se declaran las variables globales para el flujo de video y audio
 let localStream;
 let peerConnection;
 
+//configuracion de los servidores ICE
+//se utilizan servidores STUN y TURN para la conectividad NAT
+//STUN: ayuda a los navegadores a descubrir su dirección IP pública del cliente
+//TURN: permite la retransmisión de medios a través de un servidor intermedio si la conexion falla
+//esto es útil cuando los navegadores están detrás de NATs restrictivos
+//en este caso se utilizan servidores públicos de Google y OpenRelay
 const config = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -23,37 +35,37 @@ const config = {
     ]
 };
 
-// Capturar video local
-navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+// Capturar video y audio local
+navigator.mediaDevices.getUserMedia({ video: true, audio: true }) //getUserMedia: solicita acceso a la camara y el microfono del usuario
     .then(stream => {
-        localVideo.srcObject = stream;
-        localStream = stream;
+        localVideo.srcObject = stream; //muestra el video local en la interfaz
+        localStream = stream; //almacena el flujo local para usarlo en la llamada
 
         iniciarLlamada();
     });
 
+// Iniciar llamada
 function iniciarLlamada() {
-    peerConnection = new RTCPeerConnection(config);
-
+    peerConnection = new RTCPeerConnection(config); //crea la conexion P2P
     // Agregar tracks locales
     localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
+        peerConnection.addTrack(track, localStream); //addTrack agrega los tracks (pistas) de audio y video al peerConnection
     });
 
     // Manejar llegada de stream remoto
-    peerConnection.ontrack = event => {
+    peerConnection.ontrack = event => { //onTrack recibe y muestra el flujo remoto en el video remoto
         remoteVideo.srcObject = event.streams[0];
     };
 
     // ICE Candidates
-    peerConnection.onicecandidate = event => {
+    peerConnection.onicecandidate = event => { //onicecandidate se encarga de enviar los candidatos ICE al servidor para la señalizacion
         if (event.candidate) {
             socket.emit('ice-candidate', event.candidate);
         }
     };
 }
 
-// Recibir offer → responder
+// Recibir offer → responder --recibe una oferta de conexion de otro cliente, y configura la descripcion remota y envia una respuesta 
 socket.on('offer', async offer => {
     if (!peerConnection) iniciarLlamada();
 
@@ -63,12 +75,12 @@ socket.on('offer', async offer => {
     socket.emit('answer', answer);
 });
 
-// Recibir answer → conectar
+// Recibir answer → conectar --configura la descripcion remota con la respuesta del otro cliente    
 socket.on('answer', async answer => {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
 });
 
-// Recibir ICE
+// Recibir candidato ICE → agregar --recibe un candidato ICE de otro cliente y lo agrega a la conexion P2P
 socket.on('ice-candidate', async candidate => {
     try {
         await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -77,7 +89,7 @@ socket.on('ice-candidate', async candidate => {
     }
 });
 
-// Iniciar la conexión (ofrecer)
+// Iniciar la conexión (ofrecer) --crea y envia una oferta inicial despues de un segundo
 setTimeout(async () => {
     if (!peerConnection) return;
     const offer = await peerConnection.createOffer();
@@ -85,7 +97,10 @@ setTimeout(async () => {
     socket.emit('offer', offer);
 }, 1000);
 
+//----------------------------------
 // CHAT
+
+//envia mensaje al servidor y lo muestra en la interfaz
 enviarBtn.addEventListener('click', () => {
     const mensaje = mensajeInput.value;
     if (mensaje.trim() !== '') {
@@ -102,19 +117,20 @@ function agregarMensaje(texto) {
 }
 
 //TTS
-socket.on('mensaje', mensaje => {
+socket.on('mensaje', mensaje => { //recibe el mensaje del servidor y lo muestra en la interfaz y lo reproduce con texto a voz (TTS)
     agregarMensaje(`Otro: ${mensaje}`);
     reproducirMensaje(mensaje);
 });
 
-function reproducirMensaje(texto) {
+function reproducirMensaje(texto) { //reproduce el mensaje recibido con TTS --convierte el texto recibido en audio utilizando la API de sintesis de voz del navegador
     const synth = window.speechSynthesis;
     const utterance = new SpeechSynthesisUtterance(texto);
     utterance.lang = 'es-ES';
     synth.speak(utterance);
 }
 
-//STT
+//STT --reconocimiento de voz
+//usa la API de reconocimiento de voz del navegador para convertir el habla en texto y enviarlo como mensaje
 hablarBtn.addEventListener('click', () => {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
         alert('Tu navegador no soporta reconocimiento de voz');
@@ -153,7 +169,7 @@ hablarBtn.addEventListener('click', () => {
     };
 });
 
-// 🎥 Activar/desactivar cámara
+// 🎥 Activar/desactivar cámara local
 let cameraOn = true;
 toggleCameraBtn.addEventListener('click', () => {
     if (!localStream) return;
@@ -162,7 +178,7 @@ toggleCameraBtn.addEventListener('click', () => {
     toggleCameraBtn.textContent = cameraOn ? '🎥 Cámara' : '🚫 Cámara';
 });
 
-// 🎙️ Activar/desactivar micrófono
+// 🎙️ Activar/desactivar micrófono local
 let micOn = true;
 toggleMicBtn.addEventListener('click', () => {
     if (!localStream) return;

@@ -1,8 +1,8 @@
 #videos {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2em;
-    margin: 20px;
+    display: grid; //cuadricula
+    grid-template-columns: 1fr 1fr; //crea dos columnas de igual tamaño
+    gap: 2em; //espacio de 2 unidades em entre filaes y columnas del grid
+    margin: 20px; //margen externo de 20 pixeles  alrededor del contenedor
 }
 .video-player {
     background-color: black;
