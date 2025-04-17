@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Videollamada + Chat</title>
+    <style>
+        video { width: 300px; margin: 10px; }
+        #chat { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Videollamada P2P + Chat</h1>
+
+    <video id="localVideo" autoplay muted></video>
+    <video id="remoteVideo" autoplay></video>
+
+    <div id="chat">
+        <input type="text" id="mensajeInput" placeholder="Escribí un mensaje...">
+        <button id="enviarBtn">Enviar</button>
+        <button id="hablarBtn">🎙️ Hablar</button> <!-- nuevo botón -->
+        <button id="toggleCamera">🎥 Cámara</button>
+        <button id="toggleMic">🎙️ Micrófono</button>
+
+        <div id="mensajes"></div>
+    </div>
+    
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
