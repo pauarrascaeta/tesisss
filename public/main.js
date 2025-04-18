@@ -13,6 +13,8 @@ const mensajesDiv = document.getElementById('mensajes');
 const hablarBtn = document.getElementById('hablarBtn');
 const toggleCameraBtn = document.getElementById('toggleCamera');
 const toggleMicBtn = document.getElementById('toggleMic');
+const sourceLangSelect = document.getElementById('sourceLang');
+const targetLangSelect = document.getElementById('targetLang');
 
 //se declaran las variables globales para el flujo de video y audio
 let localStream;
@@ -140,7 +142,7 @@ hablarBtn.addEventListener('click', () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
 
-    recognition.lang = 'es-ES';
+    recognition.lang = sourceLangSelect.value; // Obtener el idioma de origen seleccionado
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
@@ -186,3 +188,39 @@ toggleMicBtn.addEventListener('click', () => {
     localStream.getAudioTracks().forEach(track => track.enabled = micOn);
     toggleMicBtn.textContent = micOn ? '🎙️ Micrófono' : '🔇 Micrófono';
 });
+
+//-------------------------------------------------------------
+
+// Función para traducir texto usando el servidor local
+async function traducirTexto(texto) {
+    const sourceLang = sourceLangSelect.value; // Obtener el idioma de origen seleccionado
+    const targetLang = targetLangSelect.value; // Obtener el idioma de destino seleccionado
+    if (sourceLang === targetLang) return texto; // Si los idiomas son iguales, no traducir
+    if (!texto) return texto; // Si no hay texto, devolver el texto original
+
+    try {
+        const response = await fetch('http://localhost:5000/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: texto, source_lang: sourceLang, target_lang: targetLang }),
+        });
+
+        const data = await response.json();
+        return data.translated_text;
+    } catch (error) {
+        console.error('Error al traducir el texto:', error);
+        return texto; // Si falla, devuelve el texto original
+    }
+}
+
+// Modificar la función de TTS para incluir traducción
+async function reproducirMensaje(texto) {
+
+    const textoTraducido = await traducirTexto(texto); // Traducir al idioma deseado
+    const targetLang = targetLangSelect.value; // Obtener el idioma de destino seleccionado
+
+    const synth = window.speechSynthesis;
+    const utterance = new SpeechSynthesisUtterance(textoTraducido);
+    utterance.lang = targetLang === 'es' ? 'es-ES' : 'en-US'; // Ajustar el idioma del TTS
+    synth.speak(utterance);
+}
